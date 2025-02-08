@@ -1,13 +1,68 @@
-touch templates/index.html  # Mac / Linux
-echo. > templates/index.html  # Windows CMD
 <!DOCTYPE html>
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flask 部署成功</title>
+    <title>富濠預測分析</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .container {
+            width: 50%;
+            margin: auto;
+            padding: 20px;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px;
+            margin: 5px;
+        }
+        #history {
+            margin-top: 20px;
+            font-size: 16px;
+            color: blue;
+        }
+        #prediction {
+            font-size: 18px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
 </head>
 <body>
-    <h1>🎉 Flask 成功運行於 Render！</h1>
+    <div class="container">
+        <h1>富濠預測分析</h1>
+        <p id="history">歷史記錄：尚無記錄</p>
+        <p id="prediction">下一次可能是：未知</p>
+        <button onclick="updateResult('B')">莊 (B)</button>
+        <button onclick="updateResult('P')">閒 (P)</button>
+        <button onclick="resetGame()">重置遊戲</button>
+    </div>
+
+    <script>
+        function updateResult(result) {
+            fetch('/update_result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ result: result })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("history").innerText = "歷史記錄：" + data.history.join("，");
+                document.getElementById("prediction").innerText = data.prediction;
+            });
+        }
+
+        function resetGame() {
+            fetch('/reset', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("history").innerText = "歷史記錄：尚無記錄";
+                document.getElementById("prediction").innerText = "下一次可能是：未知";
+            });
+        }
+    </script>
 </body>
 </html>

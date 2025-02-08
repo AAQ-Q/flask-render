@@ -4,13 +4,16 @@ import numpy as np
 
 app = Flask(__name__)
 
-# 初始化遊戲數據和模型
-game_results = []
-model = RandomForestClassifier()
-is_model_ready = False
+# 全域變數：遊戲記錄與模型狀態
+game_results = []  # 存放歷史數據 (例如：['B', 'P', ...])
+model = RandomForestClassifier()  # 使用隨機森林模型
+is_model_ready = False  # 模型是否訓練完成
 
+# ------------------------------------------
+# 功能函數
+# ------------------------------------------
 def prepare_training_data(results, window_size=3):
-    """準備訓練數據 (滑動窗口方法)"""
+    """利用滑動窗口方法準備訓練數據"""
     if len(results) <= window_size:
         return [], []
     X, y = [], []
@@ -20,7 +23,7 @@ def prepare_training_data(results, window_size=3):
     return X, y
 
 def encode_data(data):
-    """將 BP 轉換為數字 (B: 1, P: 0)"""
+    """將 'B' 與 'P' 轉換為數字 (B: 1, P: 0)"""
     return [1 if x == "B" else 0 for x in data]
 
 def decode_data(data):
@@ -50,38 +53,51 @@ def predict_next():
     prediction = model.predict(X)[0]
     return decode_data(prediction)
 
+# ------------------------------------------
+# Flask 路由
+# ------------------------------------------
 @app.route('/')
 def index():
-    return render_template("index.html")
+    # 透過 index.html 模板顯示前端介面
+    return render_template('index.html')
 
 @app.route('/update_result', methods=['POST'])
-def update_result():
+def update_result_endpoint():
     global game_results
-    data = request.json
-    result = data.get("result")
-    
-    if result:
-        game_results.append(result)
-    
-    if len(game_results) < 3:
-        return jsonify({"prediction": "數據不足，無法有效預測", "history": game_results})
-    
-    was_trained = train_model()
-    if not was_trained:
-        return jsonify({"prediction": "數據不足，無法有效預測", "history": game_results})
+    data = request.get_json()
+    result = data.get('result')
+    if result not in ['B', 'P']:
+        return jsonify({'error': '無效的輸入'}), 400
 
-    next_prediction = predict_next()
-    return jsonify({
-        "prediction": f"下一次可能是：{'莊' if next_prediction == 'B' else '閒'}",
-        "history": game_results
-    })
+    game_results.append(result)
+
+    # 準備回傳的歷史記錄 (直接傳整個列表，前端可進行處理)
+    history = game_results[:]
+
+    # 當記錄不足時顯示提示訊息
+    if len(game_results) < 3:
+        prediction_text = "數據不足，無法有效預測"
+    else:
+        if train_model():
+            prediction = predict_next()
+            if prediction != "未知":
+                prediction_text = "下一次可能是：" + ("莊" if prediction == "B" else "閒")
+            else:
+                prediction_text = "數據不足，無法預測"
+        else:
+            prediction_text = "數據不足，無法有效預測"
+
+    return jsonify({'history': history, 'prediction': prediction_text})
 
 @app.route('/reset', methods=['POST'])
-def reset():
+def reset_game():
     global game_results, is_model_ready
     game_results = []
     is_model_ready = False
-    return jsonify({"message": "遊戲記錄已重置！", "history": game_results})
+    return jsonify({
+        'history': "請輸入更多數據以便系統分析",
+        'prediction': "下一次可能是：請輸入更多數據以便系統分析"
+    })
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)

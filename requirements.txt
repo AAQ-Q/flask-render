@@ -1,1 +1,2 @@
-echo flask gunicorn > requirements.txt
+flask
+gunicorn
